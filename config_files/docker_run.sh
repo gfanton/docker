@@ -1,5 +1,7 @@
 #!/bin/sh
 
+echo $GIT_SSH
+
 if [ $DB_SERVER = "localhost" ] || [ $DB_SERVER = "127.0.0.1" ]; then
 	echo "\n* Starting internal MySQL server ...";
 	service mysql start
@@ -9,6 +11,14 @@ if [ $DB_SERVER = "localhost" ] || [ $DB_SERVER = "127.0.0.1" ]; then
 		mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="GRANT ALL ON *.* to $DB_USER@'%' IDENTIFIED BY '$DB_PASSWD'; " 2> /dev/null;
 		mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="flush privileges; " 2> /dev/null;
 	fi
+fi
+
+# ssh configuration
+if [ -f /home/root/.ssh/id_rsa  ]; then
+	eval `ssh-agent -s`
+	ssh-add /home/root/.ssh/id_rsa
+	echo 'Host *\n	StrictHostKeyChecking no\n	UserKnownHostsFile=/dev/null' >> /etc/ssh/ssh_config
+	GIT_S=1
 fi
 
 if [ ! -f ./config/settings.inc.php  ]; then
@@ -28,6 +38,7 @@ if [ ! -f ./config/settings.inc.php  ]; then
 		sed -ie "s/DirectoryIndex\ index.php\ index.html/DirectoryIndex\ docker_updt_ps_domains.php\ index.php\ index.html/g" /etc/apache2/apache2.conf
 	fi
 
+	# Auto install
 	if [ $PS_INSTALL_AUTO = 1 ]; then
 		echo "\n* Installing PrestaShop, this may take a while ...";
 		if [ $DB_PASSWD = "" ]; then
@@ -43,8 +54,12 @@ if [ ! -f ./config/settings.inc.php  ]; then
 			--password=$ADMIN_PASSWD --email="$ADMIN_MAIL" --language=$PS_LANGUAGE --country=$PS_COUNTRY \
 			--newsletter=0 --send_email=0
 
+		echo $GIT_SSH
+		php /tmp/module_install.php -m $GIT_MODULES -o $GIT_OPERATIONS -s $GIT_S -u $GIT_USER
+
 		chown www-data:www-data -R /var/www/html/
 	fi
+
 fi
 
 echo "\n* Almost ! Starting Apache now\n";

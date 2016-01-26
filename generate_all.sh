@@ -12,5 +12,5 @@ while read version; do
 
     cp -R config_files/ images/$version/
 
-    docker build -t quetzacoalt/prestashop:$version images/$version/
+    docker build -t test_ps images/$version/
 done <versions.txt

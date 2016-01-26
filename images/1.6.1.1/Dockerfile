@@ -5,18 +5,26 @@ MAINTAINER Thomas Nabord <thomas.nabord@prestashop.com
 ENV PS_VERSION 1.6.1.1
 
 ENV PS_DOMAIN prestashop.local
+
 ENV DB_SERVER 127.0.0.1
 ENV DB_NAME prestashop
 ENV DB_USER root
 ENV DB_PASSWD admin
+
 ENV ADMIN_MAIL demo@prestashop.com
 ENV ADMIN_PASSWD prestashop_demo
+
 ENV PS_LANGUAGE en
 ENV PS_COUNTRY gb
 ENV PS_INSTALL_AUTO 0
 ENV PS_DEV_MODE 0
 ENV PS_HOST_MODE 0
 ENV PS_HANDLE_DYNAMIC_DOMAIN 0
+
+ENV GIT_CLONE_SSH 0
+ENV GIT_MODULES ":"
+ENV GIT_OPERATIONS "install:uninstall:install"
+ENV GIT_USER ":"
 
 
 # Avoid MySQL questions during installation
@@ -34,6 +42,8 @@ RUN apt-get update \
 		mysql-server \
 		wget \
 		unzip \
+		git \
+		ssh \
     && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
     && docker-php-ext-install iconv mcrypt pdo mysql pdo_mysql mbstring soap gd
 
@@ -45,9 +55,17 @@ RUN mv /var/www/html/install /var/www/html/install-dev
 RUN mv /var/www/html/admin /var/www/html/admin-dev
 COPY config_files/docker_updt_ps_domains.php /var/www/html/
 
+# git config
+RUN git config --global advice.implicitIdentity false
+RUN git config --global user.email $ADMIN_MAIL
+ADD config_files/.gitconfig /home/root/
+
 # Apache configuration
 RUN a2enmod rewrite
 RUN chown www-data:www-data -R /var/www/html/
+
+# Add symbolic link
+RUN ln -s /var/www/html /html
 
 # PHP configuration
 COPY config_files/php.ini /usr/local/etc/php/
@@ -59,6 +77,8 @@ EXPOSE 3306
 VOLUME /var/www/html/modules
 VOLUME /var/www/html/themes
 VOLUME /var/www/html/override
+VOLUME /home/root/.ssh
 
 COPY config_files/docker_run.sh /tmp/
+COPY config_files/module_install.php /tmp/
 ENTRYPOINT ["/tmp/docker_run.sh"]
