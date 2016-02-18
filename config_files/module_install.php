@@ -113,7 +113,7 @@ function setContext()
     Context::getContext()->smarty = $smarty;
 }
 
-function gitPull($repo, $name, array $creds = array (), $pull = null)
+function gitPull($repo, $name, $pull = null)
 {
     if (!file_exists(_PS_MODULE_DIR_.$name)) { // module already exist proced to install
         return false;
@@ -144,6 +144,10 @@ function gitClone($repo, $name, array $creds = array (), $pull = null, $endpoint
 
     if (!file_exists(_PS_MODULE_DIR_.$name.'/'.$name.'.php')) { // check for success
         return false;
+    }
+
+    if (isset($pull)) {
+        gitPull($repo, $name, $pull);
     }
 
     return true;
