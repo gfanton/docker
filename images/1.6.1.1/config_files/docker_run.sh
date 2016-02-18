@@ -18,7 +18,7 @@ if [ -f /home/root/.ssh/id_rsa  ]; then
 	eval `ssh-agent -s`
 	ssh-add /home/root/.ssh/id_rsa
 	echo 'Host *\n	StrictHostKeyChecking no\n	UserKnownHostsFile=/dev/null' >> /etc/ssh/ssh_config
-	GIT_S=1
+	GIT_CLONE_SSH=1
 fi
 
 if [ ! -f ./config/settings.inc.php  ]; then
