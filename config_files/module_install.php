@@ -17,7 +17,7 @@ define('_GIT_ENDPOINT_', 'github.com');
 define('_GIT_CLONE_', 'git clone --recursive "https://%s/%s" %s'); // args: endpoint, user, pass, repo, name
 define('_GIT_CLONE_AUTH_', 'git clone --recursive "https://%s:%s@%s/%s" %s'); // args: user, pass, endpoint, repo, name
 define('_GIT_CLONE_SSH_', 'git clone --recursive "git@%s:%s" %s'); // args: endpoint, repo, repo_name
-define('_GIT_PULL_', 'git -C "%s" pull -v origin pull/%d/head'); // args: repo_name, pull_id
+define('_GIT_PULL_', 'git -C "%s" pull -v origin pull/%d/head'); // args: repo_path, pull_id
 
 function handleErrorMuteExpected($severity, $message, $errfile, $errline, $errcontext)
 {
@@ -115,10 +115,6 @@ function setContext()
 
 function gitPull($repo, $name, $pull = null)
 {
-    if (!file_exists(_PS_MODULE_DIR_.$name)) { // module already exist proced to install
-        return false;
-    }
-
     if (!empty($pull)) {         // fetch pull request
         shell_exec(sprintf(_GIT_PULL_, _PS_MODULE_DIR_.$name, $pull));
     }
@@ -174,14 +170,12 @@ function moduleCheckSyntax($module_name = null, array &$errors = array ())
         if (empty($errors)) {
             return true;
         }
-    }
-    else {
+
+    } else {
         $errors[] = sprintf('the module "%s" does not exist', $module_name);
     }
 
-
     return false;
-
 }
 
 function modulesOperations($module_name = null, $method = 'install', array &$errors = array ())
@@ -208,8 +202,8 @@ function modulesOperations($module_name = null, $method = 'install', array &$err
                     $errors = array_merge($errors, $module->getErrors());
                 }
 
+            } catch (PrestaShopDatabaseException $e) {
 
-            } catch (PrestaShopDatabaseException $e) { // TODO: get full query
                 $errors[] = $e->getMessage();
 
             } catch (PrestaShopException $e) {
@@ -268,34 +262,40 @@ function main($modules, $operations, array $git_creds = array())
         }
 
         printf("[%s] -- First let's check module syntax... ", $module_name);
-        if (!moduleCheckSyntax($module_name, $errors)) {                // Check module syntax
-            $operations = array ();                                     // if fail abort operations
-            return false;
-        }
-        printf("DONE\n\n");
 
-        printf("[%s] -- Starting module operations:\n", $module_name);
-        foreach ($operations as $operation) { // execute operations
+        if (!moduleCheckSyntax($module_name, $errors)) { // Check module syntax
 
-            printf("[%s] - %s... ", $module_name, $operation);
+            printf("FAIL... Dude do you even code... \n\n");
 
-            if (!empty($module_name) && modulesOperations($module_name, $operation, $errors)) { // Test operations
-                printf("DONE\n", $operation);
+            $operations = array (); // if fail abort operations
 
-            } else {            // handle errors
+        } else {                // else continue
 
-                if (!empty($context->controller->errors)) {
+            printf("DONE\n\n");
 
-                    $context = Context::getContext();
-                    $errors = array_merge($errors, $context->controller->errors);
-                    $context->controller->errors = array ();
+            printf("[%s] -- Starting module operations:\n", $module_name);
+            foreach ($operations as $operation) { // execute operations
+
+                printf("[%s] - %s... ", $module_name, $operation);
+
+                if (!empty($module_name) && modulesOperations($module_name, $operation, $errors)) { // Test operations
+                    printf("DONE\n", $operation);
+
+                } else {            // handle errors
+
+                    if (!empty($context->controller->errors)) {
+
+                        $context = Context::getContext();
+                        $errors = array_merge($errors, $context->controller->errors);
+                        $context->controller->errors = array ();
+                    }
+                    printf("FAIL\n", $operation);
                 }
-                printf("FAIL\n", $operation);
-            }
 
-            if ($operation === 'install') {
-                Module::updateTranslationsAfterInstall(true);
-                Language::updateModulesTranslations(array ($module_name));
+                if ($operation === 'install') {
+                    Module::updateTranslationsAfterInstall(true);
+                    Language::updateModulesTranslations(array ($module_name));
+                }
             }
         }
 
@@ -303,10 +303,13 @@ function main($modules, $operations, array $git_creds = array())
             foreach ($errors as $err) {
                 printf("ERROR: [%s]\n", $err);
             }
+            return false;
         }
 
         printf("%s\n", str_repeat('-', 31));
     }
+
+    return true;
 }
 
 // TODO: add endpoint
