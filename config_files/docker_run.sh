@@ -1,10 +1,8 @@
 #!/bin/sh
 
-echo $GIT_SSH
-
 if [ ! -z $PS_VERSION ]; then
     echo '--------------------------------------------------';
-    echo -n 'Downloading prestashop ' $PS_VERSION;
+    echo "Downloading prestashop  https://www.prestashop.com/download/old/prestashop_$PS_VERSION.zip";
     curl -# -L https://www.prestashop.com/download/old/prestashop_$PS_VERSION.zip > /tmp/prestashop.zip;
 
     echo -n '\nUnzip... ';
@@ -20,6 +18,7 @@ else
     echo 'PS_VERSION undefined'
     exit 1
 fi
+
 
 
 if [ $DB_SERVER = "localhost" ] || [ $DB_SERVER = "127.0.0.1" ]; then
@@ -75,13 +74,11 @@ if [ ! -f ./config/settings.inc.php  ]; then
 			      mysqladmin -h $DB_SERVER -u $DB_USER -p$DB_PASSWD create $DB_NAME --force 2> /dev/null;
 		    fi
 
-		    php /var/www/html/install-dev/index_cli.php --domain=$(hostname -i) --db_server=$DB_SERVER --db_name="$DB_NAME" --db_user=$DB_USER \
+		    php /var/www/html/install-dev/index_cli.php --domain=$PS_HOST --db_server=$DB_SERVER --db_name="$DB_NAME" --db_user=$DB_USER \
 			      --db_password=$DB_PASSWD --firstname="John" --lastname="Doe" \
 			      --password=$ADMIN_PASSWD --email="$ADMIN_MAIL" --language=$PS_LANGUAGE --country=$PS_COUNTRY \
-			      --newsletter=0 --send_email=0
-
-		    echo $GIT_SSH
-		    php /tmp/module_install.php -m $GIT_MODULES -o $GIT_OPERATIONS -s $GIT_S -u $GIT_USER
+			      --newsletter=0 --send_email=0 \
+            --http-host=$PS_HOST
 
 		    chown www-data:www-data -R /var/www/html/
 	  fi
@@ -90,3 +87,4 @@ fi
 
 echo "\n* Almost ! Starting Apache now\n";
 /usr/sbin/apache2ctl -D FOREGROUND
+echo "\n* Done!!\n"
