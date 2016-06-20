@@ -1,51 +1,53 @@
 #!/bin/sh
 
-if [ ! -z $PS_VERSION ]; then
-    echo '--------------------------------------------------';
-    echo "Downloading prestashop  https://www.prestashop.com/download/old/prestashop_$PS_VERSION.zip";
-    curl -# -L https://www.prestashop.com/download/old/prestashop_$PS_VERSION.zip > /tmp/prestashop.zip;
+# Avoid double install.
+if [ ! -f /var/www/html/config/settings.inc.php  ]; then
 
-    echo -n '\nUnzip... ';
-    (bsdtar -xf /tmp/prestashop.zip -s'|[^/]*/||' -C /var/www/html \
-            && mv /var/www/html/install /var/www/html/install-dev && mv /var/www/html/admin /var/www/html/admin-dev \
-            && chown www-data:www-data -R /var/www/html/ \
-            && echo 'DONE!') \
-        || echo 'FAIL!';
+    # Download prestashop.
+    if [ ! -z $PS_VERSION ]; then
+        echo '--------------------------------------------------';
+        echo "Downloading prestashop  https://www.prestashop.com/download/old/prestashop_$PS_VERSION.zip";
+        curl -# -L https://www.prestashop.com/download/old/prestashop_$PS_VERSION.zip > /tmp/prestashop.zip;
 
-    echo -n 'Cleaning...';
-    (rm -f /tmp/prestashop.zip && echo 'DONE!') || echo 'FAIL!';
-else
-    echo 'PS_VERSION undefined'
-    exit 1
-fi
+        echo -n '\nUnzip... ';
+        (bsdtar -xf /tmp/prestashop.zip -s'|[^/]*/||' -C /var/www/html \
+             && mv /var/www/html/install /var/www/html/install-dev && mv /var/www/html/admin /var/www/html/admin-dev \
+             && chown www-data:www-data -R /var/www/html/ \
+             && echo 'DONE!') \
+            || echo 'FAIL!';
 
+        echo -n 'Cleaning...';
+        (rm -f /tmp/prestashop.zip && echo 'DONE!') || echo 'FAIL!';
+    else
+        echo 'PS_VERSION undefined'
+        exit 1
+    fi
 
+    # Grant mysql perm.
+    if [ $DB_SERVER = "localhost" ] || [ $DB_SERVER = "127.0.0.1" ]; then
+        echo '--------------------------------------------------';
+	      echo "\n* Starting internal MySQL server ...";
+	      service mysql start;
+	      if [ $DB_PASSWD != "" ] && [ ! -f ./config/settings.inc.php  ]; then
+		        echo "\n* Grant access to MySQL server ...";
+		        mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="GRANT ALL ON *.* to $DB_USER@'localhost' IDENTIFIED BY '$DB_PASSWD'; " 2> /dev/null;
+		        mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="GRANT ALL ON *.* to $DB_USER@'%' IDENTIFIED BY '$DB_PASSWD'; " 2> /dev/null;
+		        mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="flush privileges; " 2> /dev/null;
+	      fi
+    fi
 
-if [ $DB_SERVER = "localhost" ] || [ $DB_SERVER = "127.0.0.1" ]; then
-    echo '--------------------------------------------------';
-	  echo "\n* Starting internal MySQL server ...";
-	  service mysql start;
-	  if [ $DB_PASSWD != "" ] && [ ! -f ./config/settings.inc.php  ]; then
-		    echo "\n* Grant access to MySQL server ...";
-		    mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="GRANT ALL ON *.* to $DB_USER@'localhost' IDENTIFIED BY '$DB_PASSWD'; " 2> /dev/null;
-		    mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="GRANT ALL ON *.* to $DB_USER@'%' IDENTIFIED BY '$DB_PASSWD'; " 2> /dev/null;
-		    mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="flush privileges; " 2> /dev/null;
-	  fi
-fi
+    # ssh configuration
+    if [ -f /home/root/.ssh/id_rsa  ]; then
+        echo '--------------------------------------------------';
+        echo 'id rsa detected';
+	      eval `ssh-agent -s`;
+        echo 'ssh agent is now running...';
+	      ssh-add /home/root/.ssh/id_rsa;
+        echo 'Setting up ssh config:';
+	      echo 'Host *\n	StrictHostKeyChecking no\n	UserKnownHostsFile=/dev/null' >> /etc/ssh/ssh_config;
+	      GIT_CLONE_SSH=1;
+    fi
 
-# ssh configuration
-if [ -f /home/root/.ssh/id_rsa  ]; then
-    echo '--------------------------------------------------';
-    echo 'id rsa detected';
-	  eval `ssh-agent -s`;
-    echo 'ssh agent is now running...';
-	  ssh-add /home/root/.ssh/id_rsa;
-    echo 'Setting up ssh config:';
-	  echo 'Host *\n	StrictHostKeyChecking no\n	UserKnownHostsFile=/dev/null' >> /etc/ssh/ssh_config;
-	  GIT_CLONE_SSH=1;
-fi
-
-if [ ! -f ./config/settings.inc.php  ]; then
     echo '--------------------------------------------------';
 	  if [ $PS_DEV_MODE -ne 0 ]; then
 		    #echo "Set DEV MODE > true";
@@ -82,7 +84,6 @@ if [ ! -f ./config/settings.inc.php  ]; then
 
 		    chown www-data:www-data -R /var/www/html/
 	  fi
-
 fi
 
 echo "\n* Almost ! Starting Apache now\n";
