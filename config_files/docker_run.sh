@@ -22,31 +22,36 @@ if [ ! -f /var/www/html/config/settings.inc.php  ]; then
         echo 'PS_VERSION undefined'
         exit 1
     fi
+fi
 
-    # Grant mysql perm.
-    if [ $DB_SERVER = "localhost" ] || [ $DB_SERVER = "127.0.0.1" ]; then
-        echo '--------------------------------------------------';
-	      echo "\n* Starting internal MySQL server ...";
-	      service mysql start;
-	      if [ $DB_PASSWD != "" ] && [ ! -f ./config/settings.inc.php  ]; then
-		        echo "\n* Grant access to MySQL server ...";
-		        mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="GRANT ALL ON *.* to $DB_USER@'localhost' IDENTIFIED BY '$DB_PASSWD'; " 2> /dev/null;
-		        mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="GRANT ALL ON *.* to $DB_USER@'%' IDENTIFIED BY '$DB_PASSWD'; " 2> /dev/null;
-		        mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="flush privileges; " 2> /dev/null;
-	      fi
-    fi
+# Grant mysql perm.
+if [ $DB_SERVER = "localhost" ] || [ $DB_SERVER = "127.0.0.1" ]; then
+    echo '--------------------------------------------------';
+	  echo "\n* Starting internal MySQL server ...";
+	  service mysql start;
+	  if [ $DB_PASSWD != "" ] && [ ! ! -f /var/www/html/config/settings.inc.php  ]; then
+		    echo "\n* Grant access to MySQL server ...";
+		    mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="GRANT ALL ON *.* to $DB_USER@'localhost' IDENTIFIED BY '$DB_PASSWD'; " 2> /dev/null;
+		    mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="GRANT ALL ON *.* to $DB_USER@'%' IDENTIFIED BY '$DB_PASSWD'; " 2> /dev/null;
+		    mysql -h $DB_SERVER -u $DB_USER -p$DB_PASSWD --execute="flush privileges; " 2> /dev/null;
+	  fi
+fi
 
-    # ssh configuration
-    if [ -f /home/root/.ssh/id_rsa  ]; then
-        echo '--------------------------------------------------';
-        echo 'id rsa detected';
-	      eval `ssh-agent -s`;
-        echo 'ssh agent is now running...';
-	      ssh-add /home/root/.ssh/id_rsa;
-        echo 'Setting up ssh config:';
-	      echo 'Host *\n	StrictHostKeyChecking no\n	UserKnownHostsFile=/dev/null' >> /etc/ssh/ssh_config;
-	      GIT_CLONE_SSH=1;
-    fi
+
+# ssh configuration
+if [ -f /home/root/.ssh/id_rsa  ]; then
+    echo '--------------------------------------------------';
+    echo 'id rsa detected';
+	  eval `ssh-agent -s`;
+    echo 'ssh agent is now running...';
+	  ssh-add /home/root/.ssh/id_rsa;
+    echo 'Setting up ssh config:';
+	  echo 'Host *\n	StrictHostKeyChecking no\n	UserKnownHostsFile=/dev/null' >> /etc/ssh/ssh_config;
+	  GIT_CLONE_SSH=1;
+fi
+
+# Avoid double install.
+if [ ! -f /var/www/html/config/settings.inc.php  ]; then
 
     echo '--------------------------------------------------';
 	  if [ $PS_DEV_MODE -ne 0 ]; then
