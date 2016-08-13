@@ -1,0 +1,31 @@
+version: '2'
+services:
+  data:
+    image: tianon/true
+    volumes:
+      - ./Volumes/prestashop:/var/www/html
+      - ./Volumes/mysql:/var/lib/mysql
+
+  db:
+    image: mysql:5.6
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql
+      MYSQL_USER: prestashop
+      MYSQL_PASSWORD: prestashop
+      MYSQL_DATABASE: prestashop
+    volumes:
+      - /var/lib/mysql
+
+  web:
+    build: ./apache
+    links:
+      - db:database
+    volumes_from:
+      - data
+    ports:
+      - 8181:80
+    env_file:
+      - ./prestashop.env
+    environment:
+      DB_SERVER: database:3306
+

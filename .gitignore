@@ -1,1 +1,5 @@
 extracts/*
+Volumes
+*.env
+
+*.DS_Store

@@ -15,21 +15,14 @@ ENV ADMIN_PASSWD 12345678
 
 ENV PS_LANGUAGE en
 ENV PS_COUNTRY gb
+ENV PS_DOWNLOAD_AUTO 0
 ENV PS_INSTALL_AUTO 0
 ENV PS_DEV_MODE 0
 ENV PS_HOST_MODE 0
 ENV PS_HANDLE_DYNAMIC_DOMAIN 1
 ENV PS_HOST localhost
 
-ENV GIT_CLONE_SSH 0
-ENV GIT_MODULES ":"
-ENV GIT_OPERATIONS "install:uninstall:install"
-ENV GIT_USER ":"
-
-# Avoid MySQL questions during installation
 ENV DEBIAN_FRONTEND noninteractive
-RUN echo mysql-server-5.6 mysql-server/root_password password $DB_PASSWD | debconf-set-selections
-RUN echo mysql-server-5.6 mysql-server/root_password_again password $DB_PASSWD | debconf-set-selections
 
 RUN apt-get update \
 	&& apt-get install -y libmcrypt-dev \
@@ -38,7 +31,6 @@ RUN apt-get update \
 		libfreetype6-dev \
 		libxml2-dev \
 		mysql-client \
-		mysql-server \
 		wget \
 		unzip \
 		git \
@@ -47,22 +39,23 @@ RUN apt-get update \
     && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
     && docker-php-ext-install iconv mcrypt pdo mysql pdo_mysql mbstring soap gd
 
-COPY config_files/docker_updt_ps_domains.php /var/www/html/
+COPY ./config_files/docker_updt_ps_domains.php /var/www/html/
 
 # Apache configuration
 RUN a2enmod rewrite
-RUN chown www-data:www-data -R /var/www/html/
+RUN mkdir -p /var/www/html/
+RUN mkdir -p /scripts/
 
 # Add symbolic link
 RUN ln -s /var/www/html /html
 
 # PHP configuration
-COPY config_files/php.ini /usr/local/etc/php/
+COPY ./config_files/php.ini /usr/local/etc/php/
 
-# MySQL configuration
-RUN sed -i -e"s/^bind-address\s*=\s*127.0.0.1/bind-address = 0.0.0.0/" /etc/mysql/my.cnf
-EXPOSE 3306
+EXPOSE 80
+EXPOSE 443
 
-COPY config_files/docker_run.sh /tmp/
-COPY config_files/module_install.php /tmp/
-ENTRYPOINT ["/tmp/docker_run.sh"]
+COPY ./config_files/docker_run.sh /usr/local/bin/
+
+CMD ["docker_run.sh", "-DFOREGROUND"]
+WORKDIR /var/www/html
