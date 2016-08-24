@@ -24,38 +24,42 @@ ENV PS_HOST localhost
 
 ENV DEBIAN_FRONTEND noninteractive
 
-RUN apt-get update \
-	&& apt-get install -y libmcrypt-dev \
-		libjpeg62-turbo-dev \
-		libpng12-dev \
-		libfreetype6-dev \
-		libxml2-dev \
-		mysql-client \
-		wget \
-		unzip \
-		git \
-		ssh \
-    bsdtar \
-    && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
-    && docker-php-ext-install iconv mcrypt pdo mysql pdo_mysql mbstring soap gd
-
-COPY ./config_files/docker_updt_ps_domains.php /var/www/html/
-
-# Apache configuration
-RUN a2enmod rewrite
 RUN mkdir -p /var/www/html/
 RUN mkdir -p /scripts/
+RUN mkdir -p /cache
 
 # Add symbolic link
 RUN ln -s /var/www/html /html
 
-# PHP configuration
+RUN apt-get update && apt-get install -y \
+            libmcrypt-dev \
+            libcurl4-gnutls-dev \
+            libjpeg62-turbo-dev \
+            libpng12-dev \
+            libfreetype6-dev \
+            libxml2-dev \
+            mysql-client \
+            wget \
+            unzip \
+            git \
+            ssh \
+            bsdtar \
+            libxslt-dev \
+            && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
+            && docker-php-ext-install iconv mcrypt pdo mysql pdo_mysql mbstring soap gd zip bcmath xsl
+
+COPY ./config_files/docker_updt_ps_domains.php /var/www/html/
+COPY ./config_files/xdebug-enabler.ini /etc/php5/mods-available/
+COPY ./config_files/docker_run /usr/local/bin/
 COPY ./config_files/php.ini /usr/local/etc/php/
+
+# Apache configuration
+RUN a2enmod rewrite
 
 EXPOSE 80
 EXPOSE 443
 
-COPY ./config_files/docker_run.sh /usr/local/bin/
-
-CMD ["docker_run.sh", "-DFOREGROUND"]
 WORKDIR /var/www/html
+
+ENTRYPOINT ["docker_run"]
+CMD ["-DFOREGROUND"]

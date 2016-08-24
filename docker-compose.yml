@@ -5,19 +5,22 @@ services:
     volumes:
       - ./Volumes/prestashop:/var/www/html
       - ./Volumes/mysql:/var/lib/mysql
+      - ./Volumes/cache:/cache
 
   db:
-    image: mysql:5.6
+    build: mysql
     environment:
       MYSQL_ROOT_PASSWORD: mysql
       MYSQL_USER: prestashop
       MYSQL_PASSWORD: prestashop
       MYSQL_DATABASE: prestashop
-    volumes:
-      - /var/lib/mysql
+    volumes_from:
+      - data
+    ports:
+      - 3307:3306
 
   web:
-    build: ./apache
+    build: apache
     links:
       - db:database
     volumes_from:
@@ -28,4 +31,3 @@ services:
       - ./prestashop.env
     environment:
       DB_SERVER: database:3306
-

@@ -2,17 +2,19 @@
 
 download_auto() {
     echo '--------------------------------------------------';
-    echo "Downloading prestashop  https://www.prestashop.com/download/old/prestashop_$PS_VERSION.zip";
-    curl -# -L https://www.prestashop.com/download/old/prestashop_$PS_VERSION.zip > /tmp/prestashop.zip;
 
-    echo -n '\nUnzip... ';
-    (bsdtar -xf /tmp/prestashop.zip -s'|[^/]*/||' -C /var/www/html \
+    if [ ! -f /var/www/html/config/config.inc.php ]; then
+        echo "Downloading prestashop  https://www.prestashop.com/download/old/prestashop_$PS_VERSION.zip";
+        curl -# -L https://www.prestashop.com/download/old/prestashop_$PS_VERSION.zip > /cache/prestashop_$PS_VERSION.zip;
+    fi
+
+    echo -n 'Unzip... ';
+    (bsdtar -xf /cache/prestashop_$PS_VERSION.zip -s'|[^/]*/||' -C /var/www/html \
          && mv /var/www/html/install /var/www/html/install-dev && mv /var/www/html/admin /var/www/html/admin-dev \
          && echo 'DONE!') \
         || echo 'FAIL!';
 
     echo -n 'Cleaning...';
-    (rm -f /tmp/prestashop.zip && echo 'DONE!') || echo 'FAIL!';
 }
 
 install_auto() {
@@ -47,8 +49,6 @@ install_auto() {
 			  --password=$ADMIN_PASSWD --email="$ADMIN_MAIL" --language=$PS_LANGUAGE --country=$PS_COUNTRY \
 			  --newsletter=0 --send_email=0 \
         --http-host=$PS_HOST
-
-    id -u $SERVER_USER 2>/dev/null 1>/dev/null || useradd -r -g $SERVER_USER www-data
 }
 
 ssh_configuration() {
@@ -73,8 +73,10 @@ randname() {
 
 run() {
     echo '[+] Run apache as ownership of the webroot'
+
     local owner group owner_id group_id tmp
     read owner group owner_id group_id < <(stat -c '%U %G %u %g' .)
+
     if [[ $owner = UNKNOWN ]]; then
         owner=$(randname)
         if [[ $group = UNKNOWN ]]; then
@@ -83,6 +85,7 @@ run() {
         fi
         adduser --system --uid=$owner_id --gid=$group_id "$owner"
     fi
+
     tmp=/tmp/$RANDOM
     {
         echo "User $owner"
@@ -94,13 +97,14 @@ run() {
         rm "$tmp"
     # Not volumes, so need to be chowned
     chown -R "$owner:$group" /var/{lock,log,run}/apache*
+    chown -R "$owner:$group" /var/www/html
+
+
     exec /usr/sbin/apache2ctl "$@"
 }
 
 init() {
     echo 'init...'
-
-    cat /etc/hosts
 
     # auto download
     if [ ! -f /var/www/html/config/config.inc.php ]; then
